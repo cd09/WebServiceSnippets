@@ -14,9 +14,9 @@ using System.Collections.Specialized;
 using Newtonsoft.Json;
 using System.ServiceModel.Description;
 
-namespace WcfReferralService
+namespace WcfLeadService
 {
-    public class ReferralService : IReferralService
+    public class LeadService : ILeadService
     {
         #region Global Variables
         private String userName = ConfigurationManager.AppSettings["user"].ToString();
@@ -28,12 +28,12 @@ namespace WcfReferralService
         #endregion
 
         [WebInvoke(Method = "POST", UriTemplate =
-            "ReferralInfo"
+            "LeadInfo"
             , RequestFormat = WebMessageFormat.Json, ResponseFormat = WebMessageFormat.Json, BodyStyle = WebMessageBodyStyle.Wrapped)]
-        public string ReferralInfo(
-            Int32 ReferralId,
+        public string LeadInfo(
+            Int32 LeadId,
             Byte Type,
-            String ReferralDate,
+            String LeadDate,
             String AdvisorName,
             String ContactName,
             String ContactAddress,
@@ -48,13 +48,13 @@ namespace WcfReferralService
             String returnedRejectDupeResult = String.Empty;
             String returnedAcceptResult = String.Empty;
             string authInfo = "UserName:Password";
-            myLog.AppendLine("Execute ReferralInfo web method.");
+            myLog.AppendLine("Execute LeadInfo web method.");
             try
             {
                 myLog.AppendLine("Parameters retrieved: ");
-                myLog.AppendLine("ReferralId: " + ReferralId.ToString());
+                myLog.AppendLine("LeadId: " + LeadId.ToString());
                 myLog.AppendLine("Type: " + Type.ToString());
-                myLog.AppendLine("ReferralDate: " + ReferralDate);
+                myLog.AppendLine("LeadDate: " + LeadDate);
                 myLog.AppendLine("AdvisorName: " + AdvisorName);
                 myLog.AppendLine("ContactName: " + ContactName);
                 myLog.AppendLine("ContactAddress: " + ContactAddress);
@@ -77,8 +77,8 @@ namespace WcfReferralService
                     return jsonResult;
                 }
 
-                #region Search for existing referral in crm system
-                myLog.AppendLine("Search for existing referral.");
+                #region Search for existing Lead in crm system
+                myLog.AppendLine("Search for existing Lead.");
                 var fetchXml =
                         @" 
                             <fetch mapping='logical' distinct='true'>
@@ -88,7 +88,7 @@ namespace WcfReferralService
                                 <attribute name='createdby' />
                                 <attribute name='lastname' />
                                     <filter type='and'>
-                                      <condition attribute='contactid' operator='eq' value='" + ReferralId + @"' />
+                                      <condition attribute='contactid' operator='eq' value='" + LeadId + @"' />
                                     </filter>                                    
                               </entity>
                             </fetch>";
@@ -109,18 +109,18 @@ namespace WcfReferralService
                 #endregion
                 if (result.Entities.Count > 0)
                 {
-                    myLog.AppendLine("Referral already exists");
-                    #region Send Reject Dupe to 3rd party Referral service
-                    myLog.AppendLine("Send Reject Dupe to 3rd party Referral service.");
+                    myLog.AppendLine("Lead already exists");
+                    #region Send Reject Dupe to 3rd party Lead service
+                    myLog.AppendLine("Send Reject Dupe to 3rd party Lead service.");
 
-                    var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://www.somewebservice.com/api/RejectDupeReferral");
+                    var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://www.somewebservice.com/api/RejectDupeLead");
                     httpWebRequest.ContentType = "application/json";
                     httpWebRequest.Method = "POST";
                     httpWebRequest.Headers.Add("Authorization", "Basic " + Convert.ToBase64String(Encoding.ASCII.GetBytes(authInfo)));
 
                     using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
                     {
-                        string json = "[{\"ReferralId\":\"" + ReferralId + "\"," +
+                        string json = "[{\"LeadId\":\"" + LeadId + "\"," +
                                       "\"OrganizationId\":\"" + organizationID + "\"}]";
 
                         streamWriter.Write(json);
@@ -131,7 +131,7 @@ namespace WcfReferralService
                         using (var streamReader = new StreamReader(httpResponse.GetResponseStream()))
                         {
                             var result = streamReader.ReadToEnd();
-                            myLog.AppendLine("RejectDupeReferral result: " + result.ToString());
+                            myLog.AppendLine("RejectDupeLead result: " + result.ToString());
                             returnedRejectDupeResult = result.ToString();
                         }
                     }
@@ -139,15 +139,15 @@ namespace WcfReferralService
                 }
                 else
                 {
-                    #region Send Accept to 3rd party referral service
-                    myLog.AppendLine("Send Accept to 3rd party Referral service.");
-                    var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://www.somewebservice.com/api/AcceptReferral");
+                    #region Send Accept to 3rd party Lead service
+                    myLog.AppendLine("Send Accept to 3rd party Lead service.");
+                    var httpWebRequest = (HttpWebRequest)WebRequest.Create("https://www.somewebservice.com/api/AcceptLead");
                     httpWebRequest.ContentType = "application/json";
                     httpWebRequest.Method = "POST";
                     httpWebRequest.Headers.Add("Authorization", "Basic " + Convert.ToBase64String(Encoding.ASCII.GetBytes(authInfo)));
                     using (var streamWriter = new StreamWriter(httpWebRequest.GetRequestStream()))
                     {
-                        string json = "[{\"ReferralId\":\"" + ReferralId + "\"," +
+                        string json = "[{\"LeadId\":\"" + LeadId + "\"," +
                             "\"OrganizationId\":\"" + organizationID + "\"}]";
 
                         streamWriter.Write(json);
@@ -174,15 +174,15 @@ namespace WcfReferralService
                             }
                             if (returnedErrorDetails != String.Empty)
                             {
-                                ErrorMessage += "Error received from 3rd party Referral service. ";
+                                ErrorMessage += "Error received from 3rd party Lead service. ";
                             }
                         }
 
                         if (returnedErrorDetails == String.Empty)
                         {
-                            if (firstRootObject.Referral.Type != 1) //!= new prospect
+                            if (firstRootObject.Lead.Type != 1) //!= new prospect
                             {
-                                ErrorMessage += "Expects Type of 1.  Type sent: " + firstRootObject.Referral.Type.ToString();
+                                ErrorMessage += "Expects Type of 1.  Type sent: " + firstRootObject.Lead.Type.ToString();
                             }
                             else
                             {
@@ -200,17 +200,17 @@ namespace WcfReferralService
                     Entity note = new Entity(Annotation.EntityLogicalName);
                     if (returnedErrorDetails != String.Empty)
                     {
-                        note["subject"] = "3rd Party Accept result Error for ReferralId: " + ReferralId.ToString();
+                        note["subject"] = "3rd Party Accept result Error for LeadId: " + LeadId.ToString();
                         note["notetext"] = "Detail Logs: " + myLog.ToString() + "\r\n 3rd Party Accept Error: " + returnedErrorDetails;
                     }
                     else if (returnedRejectDupeResult != String.Empty)
                     {
-                        note["subject"] = "3rd Party RejectDuplicate result for ReferralId: " + ReferralId.ToString();
+                        note["subject"] = "3rd Party RejectDuplicate result for LeadId: " + LeadId.ToString();
                         note["notetext"] = "Detail Logs: " + myLog.ToString() + "\r\n RejectDuplicate Result: " + returnedRejectDupeResult;
                     }
                     else //error returned from this service/crm
                     {
-                        note["subject"] = "Targeted ReferralInfo Error for ReferralId: " + ReferralId.ToString();
+                        note["subject"] = "Targeted LeadInfo Error for LeadId: " + LeadId.ToString();
                         note["notetext"] = "Detail Logs: " + myLog.ToString() + "\r\n Error: " + Error;
                     }
                     service.Create(note);
@@ -237,7 +237,7 @@ namespace WcfReferralService
 
                 //Log service errors for customer
                 Entity note = new Entity(Annotation.EntityLogicalName);
-                note["subject"] = "Targeted ReferralInfo Error for ReferralId: " + ReferralId.ToString();
+                note["subject"] = "Targeted LeadInfo Error for LeadId: " + LeadId.ToString();
                 note["notetext"] = "Detail Logs: " + myLog.ToString() + "\r\n Message: " + e.Message + "\r\n Error: " + ErrorMessage + "returnedAcceptResult: " + returnedAcceptResult;
                 service.Create(note);
 
@@ -264,11 +264,11 @@ namespace WcfReferralService
         }
 
 
-        public class Referral
+        public class Lead
         {
-            public int ReferralId { get; set; }
+            public int LeadId { get; set; }
             public byte Type { get; set; }
-            public string ReferralDate { get; set; }
+            public string LeadDate { get; set; }
             public string AdvisorName { get; set; }
             public string ContactName { get; set; }
             public string ContactAddress { get; set; }
@@ -283,11 +283,11 @@ namespace WcfReferralService
             [JsonProperty("Errors")]
             public List<object> Errors { get; set; }
 
-            [JsonProperty("ReferralId")]
-            public int ReferralId { get; set; }
+            [JsonProperty("LeadId")]
+            public int LeadId { get; set; }
 
-            [JsonProperty("Referral")]
-            public Referral Referral { get; set; }
+            [JsonProperty("Lead")]
+            public Lead Lead { get; set; }
         }
 
         public class Results
