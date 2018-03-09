@@ -1,2 +1,2 @@
 # WebServiceSnippets
-Code snippets from a web service that sends & receives data with another web service
+Code snippets from a wcf service that sends & receives data with another wcf service
